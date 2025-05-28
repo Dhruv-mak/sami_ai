@@ -1,0 +1,127 @@
+[
+    {
+        "type": "function",
+        "function": {
+            "name": "normalisation_tool",
+            "strict": true,
+            "description": "Normalizes the input csvs present in the session storate. Use the default values unless specified otherwise.",
+            "parameters": {
+                "properties": {
+                    "row_norm": {
+                        "type": "string",
+                        "description": "Row normalization method.",
+                        "enum": [
+                            "SumNorm",
+                            "MedianNorm",
+                            "CompNorm"
+                        ],
+                        "default": "SumNorm"
+                    },
+                    "trans_norm": {
+                        "type": "string",
+                        "description": "Transformation method.",
+                        "enum": [
+                            "LogTrans2",
+                            "SquareRootTrans",
+                            "CubeRootTrans"
+                        ],
+                        "default": "LogTrans2"
+                    },
+                    "ref_compound": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Reference compound for normalization. Only needed for CompNorm."
+                    }
+                },
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                    "row_norm",
+                    "trans_norm",
+                    "ref_compound"
+                ]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "clustering_tool",
+            "description": "Performs clustering. first it concatenates the regions and modality data given by region_list and modality_list and then performs clustering. This also generates the UMAP and Clustering plots as output.",
+            "strict": true,
+            "parameters": {
+                "type": "object",
+                "required": [
+                    "region_list",
+                    "modality",
+                    "resolution",
+                    "harmony"
+                ],
+                "properties": {
+                    "region_list": {
+                        "type": "array",
+                        "description": "List of regions to be clustered.",
+                        "items": {
+                            "type": "string",
+                            "description": "Region name or identifier"
+                        }
+                    },
+                    "modality": {
+                        "type": "array",
+                        "description": "List of omics data for the corresponding regions in region_list based on index. If not explicitly mentioned, make it 'pool' for number of regions in region_list.",
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "pool",
+                                "metabolomics",
+                                "lipidomics",
+                                "glycomics"
+                            ]
+                        }
+                    },
+                    "resolution": {
+                        "type": "number",
+                        "description": "Resolution parameter for Leiden clustering."
+                    },
+                    "harmony": {
+                        "type": "boolean",
+                        "description": "Whether to use Harmony for batch effect correction."
+                    }
+                },
+                "additionalProperties": false
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "integration_tool",
+            "description": "Integrates the data two different clustring result h5ad files and maps (finds corresponding clusters) first files clusters to the second file. It also generates umap and cluster plots.",
+            "strict": true,
+            "parameters": {
+                "type": "object",
+                "required": [
+                    "file_path1",
+                    "file_path2"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                    "file_path1": {
+                        "type": "string",
+                        "description": "Path to the first clustering result h5ad file."
+                    },
+                    "file_path2": {
+                        "type": "string",
+                        "description": "Path to the second(reference) clustering result h5ad file."
+                    }
+                }
+            }
+        }
+    }
+]

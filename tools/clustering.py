@@ -7,6 +7,7 @@ import os
 from tools.types import ToolResultType, ToolResult
 import logging
 import scanpy as sc
+from db import insert_record
 
 logger = logging.getLogger(__name__)
 
@@ -94,8 +95,6 @@ async def clustering_tool(input: ClusteringInput, session_id: str) -> list[ToolR
         print(f"Reading file: {input.region_list[0]}_{input.modality[0]}.h5ad")
         try:
             read_file = sc.read(os.path.join(pool_dir, f"{input.region_list[0]}_{input.modality[0]}.h5ad"))
-            regions = input.region_list[0]
-            modality = input.modality[0]
         except FileNotFoundError:
             logger.error(f"File {input.region_list[0]}_{input.modality[0]}.h5ad does not exist.")
             return [
@@ -106,39 +105,40 @@ async def clustering_tool(input: ClusteringInput, session_id: str) -> list[ToolR
                 )
             ]
     else:
-        h5ad_files = []
-        for i in range(len(input.region_list)):
-            if input.region_list[i] == "All_tissues" and input.modality[i] != "pool":
-                logger.error("If region_list is 'All_tissues', modality must be 'pool'.")
-                return [
-                    ToolResult(
-                        type=ToolResultType.text,
-                        content="If region_list is 'All_tissues', modality must be 'pool'.",
-                        error=True
-                    )
-                ]
-            file_name = f"{input.region_list[i]}_{input.modality[i]}.h5ad"
-            if not os.path.exists(os.path.join(pool_dir, file_name)):
-                logger.error(f"File {file_name} does not exist.")
-                return [
-                    ToolResult(
-                        type=ToolResultType.text,
-                        content=f"File {file_name} does not exist.",
-                        error=True
-                    )
-                ]
-            h5ad_files.append(sc.read(os.path.join(pool_dir, file_name)))
-        try:
-            read_file = adata_concat(h5ad_files)
-        except Exception as e:
-            logger.error(f"Error while concatenating files: {str(e)}")
-            return [
-                ToolResult(
-                    type=ToolResultType.text,
-                    content=f"Error while concatenating files: {str(e)}",
-                    error=True
-                )
-            ]
+        logger.warning("Multiple regions and modalities. Not fully suupported yet.")
+        # h5ad_files = []
+        # for i in range(len(input.region_list)):
+        #     if input.region_list[i] == "All_tissues" and input.modality[i] != "pool":
+        #         logger.error("If region_list is 'All_tissues', modality must be 'pool'.")
+        #         return [
+        #             ToolResult(
+        #                 type=ToolResultType.text,
+        #                 content="If region_list is 'All_tissues', modality must be 'pool'.",
+        #                 error=True
+        #             )
+        #         ]
+        #     file_name = f"{input.region_list[i]}_{input.modality[i]}.h5ad"
+        #     if not os.path.exists(os.path.join(pool_dir, file_name)):
+        #         logger.error(f"File {file_name} does not exist.")
+        #         return [
+        #             ToolResult(
+        #                 type=ToolResultType.text,
+        #                 content=f"File {file_name} does not exist.",
+        #                 error=True
+        #             )
+        #         ]
+        #     h5ad_files.append(sc.read(os.path.join(pool_dir, file_name)))
+        # try:
+        #     read_file = adata_concat(h5ad_files)
+        # except Exception as e:
+        #     logger.error(f"Error while concatenating files: {str(e)}")
+        #     return [
+        #         ToolResult(
+        #             type=ToolResultType.text,
+        #             content=f"Error while concatenating files: {str(e)}",
+        #             error=True
+        #         )
+        #     ]
     cluster = Clusters(
         read_file,
         os.path.join(work_dir, "results"),
@@ -148,6 +148,13 @@ async def clustering_tool(input: ClusteringInput, session_id: str) -> list[ToolR
     try:
         async_clustering = make_async(clustering)
         cluster_file = await async_clustering(cluster)
+        # handling it for the case of single region and modality
+        # need to be changed for multiple regions and modalities
+        insert_record(
+            session_id=session_id,
+            cluster_file=cluster_file,
+            modality_file=input.modality[0],
+        )
         
         results.append(
             ToolResult(

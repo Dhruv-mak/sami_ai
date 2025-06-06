@@ -53,6 +53,8 @@ async def integration_tool(input: IntegrationInput, session_id: str) -> list[Too
         ]
     try:
         integration_folder = os.path.join(".files", session_id, "results", "integration")
+        if not os.path.exists(integration_folder):
+            os.makedirs(integration_folder)
         adata1 = sc.read(os.path.join(results_dir, input.file_path1))
         adata2 = sc.read(os.path.join(results_dir, input.file_path2))
         cluster_int = Cluster_Integration(
@@ -84,22 +86,22 @@ async def integration_tool(input: IntegrationInput, session_id: str) -> list[Too
         async_plot_umap = make_async(plot_umap_cluster_int)
         umap_file1 = await async_plot_umap(cluster_int, adata1)
         umap_file2 = await async_plot_umap(cluster_int, adata2)
-        results.append([
+        results.append(
             ToolResult(
                 type=ToolResultType.image,
                 content=umap_file1,
                 error=False,
                 desc="UMAP plot of the first integrated dataset."
             )
-        ])
-        results.append([
+        )
+        results.append(
             ToolResult(
                 type=ToolResultType.image,
                 content=umap_file2,
                 error=False,
                 desc="UMAP plot of the second integrated dataset."
             )
-        ])
+        )
     except Exception as e:
         return [
             ToolResult(

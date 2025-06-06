@@ -7,6 +7,7 @@ import numpy as np
 import logging
 import harmonypy as hm
 import time
+import uuid
 logger = logging.getLogger(__name__)
 
 class Clusters:
@@ -40,8 +41,8 @@ def clustering(self):
         logger.error(f"Error in clustering core SAMI: {str(e)}")
         return e
 
-    self.filename = f'clustering_{time.strftime("%m%d%y_%H%M%S")}'
-    self.adata.write(os.path.join(self.result_dir,f'{self.filename}.h5ad'))
+    self.filename = f'{uuid.uuid4().hex[:8]}.h5ad'
+    self.adata.write(os.path.join(self.result_dir,self.filename))
     logger.info("Clustering completed and written the output file")
 
     return self.filename
@@ -84,7 +85,8 @@ def plot_umap_cluster(self,size=50,show=False):
         y_label = np.min(adata_sub.obsm['spatial'][:,1])
         axs[1].text(x_label,y_label, sample,fontsize=10, color='black')
     
-    plt.savefig(os.path.join(self.result_dir, f'{self.filename}_umap.png'),dpi=400)
+    filename = f'{uuid.uuid4().hex[:8]}_umap.png'
+    plt.savefig(os.path.join(self.result_dir, filename),dpi=400)
     
     if show==False:
         plt.close()
@@ -92,7 +94,7 @@ def plot_umap_cluster(self,size=50,show=False):
         plt.show()
 
     # return os.path.join(self.result_dir, f'{self.filename}_umap.png'), len(colorlist)
-    return os.path.join(self.result_dir, f'{self.filename}_umap.png')
+    return os.path.join(self.result_dir, filename)
 
 def plot_cluster(self,size=50,show=False):
     color='leiden'
@@ -119,12 +121,13 @@ def plot_cluster(self,size=50,show=False):
         y_label = np.min(adata_sub.obsm['spatial'][:,1])
         axs.text(x_label,y_label, sample,fontsize=10, color='black')
 
-    plt.savefig(os.path.join(self.result_dir,f'{self.filename}_clustring.png'),dpi=400)
+    filename = f'{uuid.uuid4().hex[:8]}.png'
+    plt.savefig(os.path.join(self.result_dir,filename),dpi=400)
     if show==False:
         plt.close()
     else:
         plt.show()
-    return os.path.join(self.result_dir,f'{self.filename}_clustring.png')
+    return os.path.join(self.result_dir,filename)
 
 def plot_select_cluster(self,cluster,size=50,show=False):
     adata = sc.read(os.path.join(self.file_path,f'{self.region}_{self.modality}_{self.resolution}.h5ad'))
@@ -246,7 +249,8 @@ def plot_umap_cluster_int(self,adata, size=50,show=False):
         y_label = np.min(adata_sub.obsm['spatial'][:,1])
         axs[1].text(x_label,y_label, sample,fontsize=10, color='black')
 
-    fig_path = os.path.join(f'{time.strftime("%m%d%y_%H%M%S")}_umap_integrated.png')
+    filename = f'{uuid.uuid4().hex[:8]}_umap_integrated.png'
+    fig_path = os.path.join(filename)
     plt.savefig(fig_path,dpi=400)
 
     if show==False:
@@ -262,7 +266,8 @@ def plot_overlap_umap_int(self, adata1, adata2, int_folder, show=False):
     plt.subplots_adjust(left=0.1,right=0.7)
     sc.pl.umap(adata_concat,color='batch',title=f'Overlay UMAP for integration',size=5,legend_fontsize=20,ax=ax,show=False)
     
-    fig_path = os.path.join(int_folder, f'{time.strftime("%m%d%y_%H%M%S")}_umap_overlap.png')
+    # fig_path = os.path.join(int_folder, f'{time.strftime("%m%d%y_%H%M%S")}_umap_overlap.png')
+    fig_path = os.path.join(int_folder, f'{uuid.uuid4().hex[:8]}_umap_overlap.png')
     plt.savefig(fig_path,dpi=200)
     if show==False:
         plt.close()

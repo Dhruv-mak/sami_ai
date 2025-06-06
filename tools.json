@@ -91,7 +91,7 @@
                     },
                     "harmony": {
                         "type": "boolean",
-                        "description": "Whether to use Harmony for batch effect correction."
+                        "description": "Whether to use Harmony for batch effect correction. Defaults to true."
                     }
                 },
                 "additionalProperties": false

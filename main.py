@@ -7,15 +7,13 @@ from chainlit.input_widget import Select, Slider, Switch
 import json
 import os
 import base64
+from db import initialize_json
 from tools.types import ToolResult, ToolResultType
-from dotenv import load_dotenv
 
 # from chainlit import ClientSession
 from tools.normalisation import normalisation_tool, NormalizationInput
 from tools.clustering import ClusteringInput, clustering_tool
 from tools.integration import IntegrationInput, integration_tool
-
-load_dotenv()
 
 # Configure the logger
 logging.basicConfig(
@@ -103,7 +101,11 @@ async def start():
         "4. Create multi-step pipelines for complex workflows"
     ).send()
 
-    logger.info(f"User session id: {cl.user_session.get('id')}")
+    # initialize Database for the session
+    session_id = cl.user_session.get("id")
+    initialize_json(session_id)
+
+    logger.info(f"User session id: {session_id}")
 
 
 @cl.step(type="tool")
@@ -353,6 +355,8 @@ async def on_message(message: cl.Message):
         await cl.Message(content=error_message).send()
         logging.error(f"Error in on_message: {str(e)}")
 
+
 if __name__ == "__main__":
     from chainlit.cli import run_chainlit
+
     run_chainlit(__file__)

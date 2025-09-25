@@ -14,6 +14,9 @@ from tools.types import ToolResult, ToolResultType
 from tools.normalisation import normalisation_tool, NormalizationInput
 from tools.clustering import ClusteringInput, clustering_tool
 from tools.integration import IntegrationInput, integration_tool
+from tools.markers import MarkersInput, markers_tool
+from tools.pathways import PathwayInput, pathway_tool
+from tools.pathway_viz import PathwayVizInput, pathway_viz_tool
 
 # Configure the logger
 logging.basicConfig(
@@ -53,7 +56,10 @@ async def start():
                 id="model",
                 label="LLM - Model",
                 values=[
+                    "gpt-4.1",
                     "gpt-4o",
+                    "gpt-4.1-nano",
+                    "gpt-4.1-mini",
                     "claude-3.5-sonnet-v2",
                     "mistral-small-3.1",
                     "claude-3.7-sonnet",
@@ -116,7 +122,6 @@ async def execute_tool(tool_name: str, tool_input: Dict[str, Any]) -> list[ToolR
 
     try:
         if tool_name == "normalisation_tool":
-
             logger.info(f"Normalisation tool input: {tool_input}")
             model = NormalizationInput(**tool_input)
             return await normalisation_tool(model, cl.user_session.get("id"))
@@ -147,9 +152,47 @@ async def execute_tool(tool_name: str, tool_input: Dict[str, Any]) -> list[ToolR
                         error=f"Error in integration tool: {str(e)}",
                     )
                 ]
+        elif tool_name == "markers_tool":
+            try:
+                model = MarkersInput(**tool_input)
+                return await markers_tool(model, cl.user_session.get("id"))
+
+            except Exception as e:
+                logger.error(f"Error in markers tool: {str(e)}")
+                return [
+                    ToolResult(
+                        type=ToolResultType.text,
+                        error=f"Error in markers tool: {str(e)}",
+                    )
+                ]
+        elif tool_name == "pathway_tool":
+            try:
+                model = PathwayInput(**tool_input)
+                return await pathway_tool(model, cl.user_session.get("id"))
+
+            except Exception as e:
+                logger.error(f"Error in pathway tool: {str(e)}")
+                return [
+                    ToolResult(
+                        type=ToolResultType.text,
+                        error=f"Error in pathway tool: {str(e)}",
+                    )
+                ]
+        elif tool_name == "pathway_viz_tool":
+            try:
+                model = PathwayVizInput(**tool_input)
+                return await pathway_viz_tool(model, cl.user_session.get("id"))
+
+            except Exception as e:
+                logger.error(f"Error in pathway visualization tool: {str(e)}")
+                return [
+                    ToolResult(
+                        type=ToolResultType.text,
+                        error=f"Error in pathway visualization tool: {str(e)}",
+                    )
+                ]
         else:
             raise ValueError(f"Tool '{tool_name}' not recognized.")
-
     except Exception as e:
         return [
             ToolResult(

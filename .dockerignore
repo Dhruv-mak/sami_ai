@@ -1,3 +1,9 @@
+# scanpy formats
+*.h5ad
+*.csv
+
+*.tar
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -178,6 +184,5 @@ cython_debug/
 .venv
 .env
 .files
-.chainlit/translations
 
 data

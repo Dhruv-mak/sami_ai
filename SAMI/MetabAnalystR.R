@@ -95,7 +95,7 @@ Setup.MapData <- function(mSetObj=NA, qvec){
 }
 
 CrossReferencing <- function(mSetObj=NA, q.type, hmdb=T, pubchem=T, 
-                             chebi=F, kegg=T, metlin=F, lipid=F){
+                             chebi=F, kegg=T, metlin=F, lipid=F , lib_folder = NA){
   
   mSetObj <- .get.mSet(mSetObj);
   
@@ -111,7 +111,7 @@ CrossReferencing <- function(mSetObj=NA, q.type, hmdb=T, pubchem=T,
   # distribute job
   mSetObj$dataSet$q.type <- q.type;
   
-  mSetObj <- MetaboliteMappingExact(mSetObj, q.type, lipid);
+  mSetObj <- MetaboliteMappingExact(mSetObj, q.type, lipid, lib_folder =  lib_folder);
 
   # do some sanity check
   todo.inx <- which(is.na(mSetObj$name.map$hit.inx));
@@ -140,7 +140,7 @@ CrossReferencing <- function(mSetObj=NA, q.type, hmdb=T, pubchem=T,
 
 
 
-MetaboliteMappingExact <- function(mSetObj=NA, q.type, lipid = F){
+MetaboliteMappingExact <- function(mSetObj=NA, q.type, lipid = F, lib_folder = NA){
   
   mSetObj <- .get.mSet(mSetObj);
   
@@ -157,11 +157,11 @@ MetaboliteMappingExact <- function(mSetObj=NA, q.type, lipid = F){
   match.state <- vector(mode='numeric', length=length(qvec));  # match status - 0, no match; 1, exact match; initial 0 
   
   if(anal.type %in% c("msetora", "msetssp", "msetqea") & lipid){
-    cmpd.db <- qs::qread("../lib/lipid_compound_db.qs");
+    cmpd.db <- qs::qread(paste(lib_folder, 'lipid_compound_db.qs', sep = '/'));
   }else if(anal.type == "utils"){
-    cmpd.db <- qs::qread("../lib/master_compound_db.qs");
+    cmpd.db <- qs::qread(paste(lib_folder, 'master_compound_db.qs', sep = '/'));
   }else{
-    cmpd.db <- qs::qread("../lib/compound_db.qs");
+    cmpd.db <- qs::qread(paste(lib_folder, 'compound_db.qs', sep = '/'));
   }
   
   if(q.type == "hmdb"){
@@ -203,11 +203,11 @@ MetaboliteMappingExact <- function(mSetObj=NA, q.type, lipid = F){
     
     # then try to find exact match to synonyms for the remaining unmatched query names one by one
     if(anal.type %in% c("msetora", "msetssp", "msetqea") & lipid){
-      syn.db <- qs::qread("../lib/lipid_syn_nms.qs")
+      syn.db <- qs::qread(paste(lib_folder, 'lipid_syn_nms.qs', sep = '/'))
     }else if(anal.type == "utils"){
-      syn.db <- qs::qread("../lib/master_syn_nms.qs")
+      syn.db <- qs::qread(paste(lib_folder, "master_syn_nms.qs", sep = '/'))
     }else{
-      syn.db <- qs::qread("../lib/syn_nms.qs")
+      syn.db <- qs::qread(paste(lib_folder, 'syn_nms.qs', sep = '/'))
     }
     
     syns.list <-  syn.db$syns.list;
@@ -274,7 +274,7 @@ SetMetabolomeFilter<-function(mSetObj=NA, TorF){
 }
 
 
-SetCurrentMsetLib <- function(mSetObj=NA, libname, excludeNum=0){
+SetCurrentMsetLib <- function(mSetObj=NA, libname, excludeNum=0, lib_folder = NA){
   
   mSetObj <- .get.mSet(mSetObj);
   
@@ -294,7 +294,8 @@ SetCurrentMsetLib <- function(mSetObj=NA, libname, excludeNum=0){
     
     # feature enhancement https://omicsforum.ca/t/error-in-setcurrentmsetlib-function-in-r/2058
     if(!exists("current.msetlib") || is.null(mSetObj$analSet$msetlibname) || mSetObj$analSet$msetlibname != libname) {
-      destfile <- paste('../lib/',libname, ".qs", sep = "");
+      temp <- paste(lib_folder, libname, sep = '/');
+      destfile <- paste(temp, ".qs", sep = "");
       my.qs <- paste("https://www.metaboanalyst.ca/resources/libs/msets/", destfile, sep="");
       if(!file.exists(destfile)){
         download.file(my.qs, destfile, method = "curl");
@@ -334,12 +335,13 @@ SetCurrentMsetLib <- function(mSetObj=NA, libname, excludeNum=0){
   return(.set.mSet(mSetObj));
 }
 
-CalculateHyperScore <- function(mSetObj=NA){
+CalculateHyperScore <- function(mSetObj=NA, lib_folder = NA){
+  
   mSetObj <- .get.mSet(mSetObj);
   
   # make a clean dataSet$cmpd data based on name mapping
   # only valid hmdb name will be used
-  nm.map <- GetFinalNameMap(mSetObj);
+  nm.map <- GetFinalNameMap(mSetObj, lib_folder = lib_folder);
   valid.inx <- !(is.na(nm.map$hmdb)| duplicated(nm.map$hmdb));
   ora.vec <- nm.map$hmdb[valid.inx];
   
@@ -416,46 +418,34 @@ CalculateHyperScore <- function(mSetObj=NA){
   set.num<-unlist(lapply(current.mset, length), use.names = FALSE);
   
   # prepare for the result table
-  res.df <- data.frame(
-    pathway = names(current.mset),
-    total = set.num,
-    expected = q.size*(set.num/uniq.count),
-    hits = hit.num,
-    Raw.p = NA,
-    Holm.p = NA,
-    FDR = NA,
-    all_compounds = NA,
-    overlap_compounds = NA,
-    stringsAsFactors = FALSE
-  )
-  
+  res.mat<-matrix(NA, nrow=set.size, ncol=6);        
+  rownames(res.mat)<-names(current.mset);
+  colnames(res.mat)<-c("total", "expected", "hits", "Raw.p", "Holm.p", "FDR");
   for(i in 1:set.size){
+    res.mat[i,1]<-set.num[i];
+    res.mat[i,2]<-q.size*(set.num[i]/uniq.count);
+    res.mat[i,3]<-hit.num[i];
+    
     # use lower.tail = F for P(X>x)
     # phyper("# of white balls drawn", "# of white balls in the urn", "# of black balls in the urn", "# of balls drawn")
-    res.df$Raw.p[i]<-phyper(hit.num[i]-1, set.num[i], uniq.count-set.num[i], q.size, lower.tail=F);
-    
-    # store all compounds in pathway
-    res.df$all_compounds[i] <- paste(current.mset[[i]],collapse=';')
-    # store overlpa compounds
-    res.df$overlap_compounds[i] <- paste(hits[[i]],collapse=';')
+    res.mat[i,4]<-phyper(hit.num[i]-1, set.num[i], uniq.count-set.num[i], q.size, lower.tail=F);
   }
   
   # adjust for multiple testing problems
-  res.df$Holm.p <- p.adjust(res.df$Raw.p, "holm");
-  res.df$FDR <- p.adjust(res.df$Raw.p, "fdr");
+  res.mat[,5] <- p.adjust(res.mat[,4], "holm");
+  res.mat[,6] <- p.adjust(res.mat[,4], "fdr");
   
-  res.df <- res.df[res.df$hits>0,];
+  res.mat <- res.mat[hit.num>0,];
   
-  res.df[,2:7] <- signif(res.df[,2:7],3)
-  res.df <- res.df[order(res.df$Raw.p),]
-  mSetObj$analSet$ora.mat <- res.df;
+  ord.inx<-order(res.mat[,4]);
+  mSetObj$analSet$ora.mat <- signif(res.mat[ord.inx,],3);
   mSetObj$analSet$ora.hits <- hits;
   
   #fast.write.csv(mSetObj$analSet$ora.mat, file="msea_ora_result.csv");
   return(.set.mSet(mSetObj));
 }
 
-GetFinalNameMap <- function(mSetObj=NA, lipid = FALSE){
+GetFinalNameMap <- function(mSetObj=NA, lib_folder = NA, lipid = FALSE ){
   
   mSetObj <- .get.mSet(mSetObj);
   
@@ -474,11 +464,11 @@ GetFinalNameMap <- function(mSetObj=NA, lipid = FALSE){
   colnames(nm.mat) <- c("query", "hmdb",  "kegg", "hmdbid");
   
   if(anal.type %in% c("msetora", "msetssp", "msetqea") & lipid){
-    cmpd.db <- qs::qread("../lib/lipid_compound_db.qs");
+    cmpd.db <- qs::qread(paste(lib_folder, 'lipid_compound_db.qs', sep = '/'));
   }else if(anal.type == "utils"){
-    cmpd.db <- qs::qread("../lib/master_compound_db.qs");
+    cmpd.db <- qs::qread(paste(lib_folder, 'master_compound_db.qs', sep = '/'));
   }else{
-    cmpd.db <- qs::qread("../lib/compound_db.qs");
+    cmpd.db <- qs::qread(paste(lib_folder, 'compound_db.qs', sep = '/'));
   }
   
   for (i in 1:length(qvec)){
@@ -515,32 +505,22 @@ fast.write.csv <- function(dat, file, row.names=TRUE){
       write.csv(dat, file, row.names=row.names); 
     });
 }
-
-
 name.map <- function(compounds,lookup){
-  compounds_list <- unlist(strsplit(compounds,";"))
+  compounds_list <- unlist(strsplit(compounds,","))
   
-  compound_codes <- sapply(compounds_list, function(x) {
-    if (x %in% names(lookup)) {
-      return(lookup[x])
-    } else{
-      return(x)
-    }
-  })
-  paste(compound_codes, collapse=';')
+  compound_codes <- sapply(compounds_list, function(x) lookup[x])
+  paste(compound_codes, collapse=',')
 }
-    
-PathwayEnrichment <- function(result_path,modality,region,markers,clusters,lipid){
-  
+
+
+PathwayEnrichment <- function(region,markers,clusters,lipid,merge, results_folder, lib_folder){
+  sink(file =  paste(results_folder, 'R_output.txt', sep = '/'), append = FALSE)
+  cat("HEROooooooooooo")
+  cat(lib_folder,'\n')
+  cat(Sys.getenv("R_LIBS_USER"),'\n')
   ora <- NULL
   nonmatch_list <- NULL
-    
-    
-  dir_path <- gsub("//+","/",file.path(result_path,paste0('pathway//',modality,'/')))
-
-  if (!file.exists(dir_path)) {
-    dir.create(dir_path, recursive = TRUE)
-  }
+  # dir_path <- results_folder
 
   if (lipid==FALSE){
     for (i in 1:length(clusters)){
@@ -553,21 +533,27 @@ PathwayEnrichment <- function(result_path,modality,region,markers,clusters,lipid
         rm(mSet,current.msetlib)
         mSet <- InitDataObjects("list","msetora",FALSE)
         mSet <- Setup.MapData(mSet,input_list)
-        mSet <- CrossReferencing(mSet,"name")
+        mSet <- CrossReferencing(mSet,"name", lib_folder = lib_folder)
         nonmatch <- mSet$name.map$query.vec[mSet$name.map$match.state==0]
         nonmatch_list <- c(nonmatch_list,nonmatch)
         mSet <- SetMetabolomeFilter(mSet,F)
-        mSet <- SetCurrentMsetLib(mSet, "smpdb_pathway",2)
-        mSet <- CalculateHyperScore(mSet)
-        metab_ora <- mSet$analSet$ora.mat
+        mSet <- SetCurrentMsetLib(mSet, "smpdb_pathway",2, lib_folder = lib_folder)
+        mSet <- CalculateHyperScore(mSet, lib_folder = lib_folder)
+        metab_ora <- as.data.frame(mSet$analSet$ora.mat)
         metab_ora['cluster'] <- clusters[i]
-        metab_ora['omics'] <- 'metabolomics_glycomics'
+        metab_ora['modality'] <- 'metabolomics_glycomics'
+        metab_ora['pathway'] <- row.names(metab_ora)
         metab_ora['region'] <- region
-        
-        nm.map <- GetFinalNameMap(mSet)
+        hits <- data.frame(cluster = clusters[i],
+                           pathway = names(mSet$analSet$ora.hits),
+                           compounds = sapply(mSet$analSet$ora.hits,paste,collapse=',')
+                          )
+        nm.map <- GetFinalNameMap(mSet, lib_folder = lib_folder)
         lookup <- setNames(nm.map$query, nm.map$hmdb)
-        metab_ora$all_compounds <- sapply(metab_ora$all_compounds, name.map, lookup=lookup) 
-        metab_ora$overlap_compounds <- sapply(metab_ora$overlap_compounds, name.map, lookup=lookup) 
+        hits$compounds <- sapply(hits$compounds, name.map, lookup=lookup) 
+        row.names(hits) <- NULL
+        row.names(metab_ora) <- NULL
+        metab_ora <- merge(metab_ora,hits,by=c('cluster','pathway'),all.x= TRUE,sort=FALSE)
 
         ora <- rbind(ora,metab_ora)
         },error=function(err){
@@ -575,8 +561,7 @@ PathwayEnrichment <- function(result_path,modality,region,markers,clusters,lipid
         }
       )
     }
-
-    csv_file <- paste0(dir_path,'ora_',region,'_metabolomics_glycomics.csv')
+    csv_file <- paste(results_folder ,paste0('ora_',region,'_metabolomics_glycomics.csv'), sep = "/")
     write.csv(ora,csv_file,row.names=FALSE)
     # if (file.exists(csv_file)){
     #   existing <- read.csv(csv_file)
@@ -585,10 +570,9 @@ PathwayEnrichment <- function(result_path,modality,region,markers,clusters,lipid
     # } else{
     #   write.csv(ora,csv_file,row.names=FALSE)
     # }
-  
     nonmatch_list <- unique(nonmatch_list)
     nonmatch <- data.frame(nonmatch=unlist(nonmatch_list))
-    csv_file <- paste0(dir_path,'nonmatch_',region,'_metabolomics_glycomics.csv')
+    csv_file <- paste(results_folder, 'nonmatch_metabolomics_glycomics.csv', sep = '/')
     write.csv(nonmatch,csv_file,row.names = FALSE)  
   #   if (file.exists(csv_file)){
   #     existing <- read.csv(csv_file)
@@ -608,21 +592,29 @@ PathwayEnrichment <- function(result_path,modality,region,markers,clusters,lipid
         rm(mSet,current.msetlib)
         mSet <- InitDataObjects("list","msetora",FALSE)
         mSet <- Setup.MapData(mSet,input_list)
-        mSet <- CrossReferencing(mSet,"name", lipid=TRUE)
+        mSet <- CrossReferencing(mSet,"name", lipid=TRUE, lib_folder = lib_folder)
         nonmatch <- mSet$name.map$query.vec[mSet$name.map$match.state==0]
         nonmatch_list <- c(nonmatch_list,nonmatch)
         mSet <- SetMetabolomeFilter(mSet,F)
-        mSet <- SetCurrentMsetLib(mSet, "sub_class",2)
-        mSet <- CalculateHyperScore(mSet)
-        lipid_ora <- mSet$analSet$ora.mat
+        mSet <- SetCurrentMsetLib(mSet, "sub_class",2, lib_folder = lib_folder)
+        mSet <- CalculateHyperScore(mSet, lib_folder)
+        lipid_ora <- as.data.frame(mSet$analSet$ora.mat)
         lipid_ora['cluster'] <- clusters[i]
-        lipid_ora['omics'] <- 'lipidomics'
+        lipid_ora['modality'] <- 'lipidomics'
+        lipid_ora['pathway'] <- row.names(lipid_ora)
         lipid_ora['region'] <- region
+        hits <- data.frame(cluster = clusters[i],
+                   pathway = names(mSet$analSet$ora.hits),
+                   compounds = sapply(mSet$analSet$ora.hits,paste,collapse=',')
+                  )
         
         nm.map <- GetFinalNameMap(mSet)
         lookup <- setNames(nm.map$query, nm.map$hmdb)
-        lipid_ora$all_compounds <- sapply(lipid_ora$all_compounds, name.map, lookup=lookup) 
-        lipid_ora$overlap_compounds <- sapply(lipid_ora$overlap_compounds, name.map, lookup=lookup) 
+        hits$compounds <- sapply(hits$compounds, name.map, lookup=lookup) 
+        
+        row.names(hits) <- NULL
+        row.names(lipid_ora) <- NULL
+        lipid_ora <- merge(lipid_ora,hits,by=c('cluster','pathway'),all.x= TRUE,sort=FALSE)
 
         ora = rbind(ora,lipid_ora)
         },error=function(err){
@@ -630,8 +622,7 @@ PathwayEnrichment <- function(result_path,modality,region,markers,clusters,lipid
         }
       )
     } 
-
-    csv_file <- paste0(dir_path,'ora_',region,'_lipidomics.csv')
+    csv_file <- paste(results_folder ,paste0('ora_',region,'_lipidomics.csv'), sep = "/")
     write.csv(ora,csv_file,row.names = FALSE)
     # if (file.exists(csv_file)){
     #   existing <- read.csv(csv_file)
@@ -643,7 +634,7 @@ PathwayEnrichment <- function(result_path,modality,region,markers,clusters,lipid
     
     nonmatch_list <- unique(nonmatch_list)
     nonmatch <- data.frame(nonmatch=unlist(nonmatch_list))
-    csv_file <- paste0(dir_path,'nonmatch_',region,'_lipidomics.csv')
+    csv_file <- paste(results_folder , paste0('nonmatch_',region,'_lipidomics.csv'), sep = "/")
     write.csv(nonmatch,csv_file,row.names = FALSE)
     # if (file.exists(csv_file)){
     #   existing <- read.csv(csv_file)
@@ -653,5 +644,6 @@ PathwayEnrichment <- function(result_path,modality,region,markers,clusters,lipid
     #   write.csv(nonmatch,csv_file,row.names = FALSE)
     # }
   }
-}
 
+sink(file = NULL)
+}

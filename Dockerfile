@@ -34,4 +34,4 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 EXPOSE 8000
 
 # Command to run the application
-CMD ["bash", "-c", "source .venv/bin/activate && chainlit run main.py --host 0.0.0.0"]
+CMD ["bash","-c","cd /app && source .venv/bin/activate && chainlit run main.py --host 0.0.0.0"]

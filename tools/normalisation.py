@@ -10,6 +10,7 @@ from tools.types import ToolResultType, ToolResult
 import re
 from SAMI.preprocessing import csv2h5ad, pooldata
 from chainlit import make_async
+from db import insert_regions
 
 logger = logging.getLogger(__name__)
 
@@ -230,6 +231,7 @@ async def normalisation_tool(
                             error=True,
                         )
                     ]
+            insert_regions(session_id, list(regions))
             compound_type = await get_compound_type(df)
             dict_compound_type[normalized_file] = str(compound_type)
             data_saving_path = os.path.join(work_dir, "pooled_data")

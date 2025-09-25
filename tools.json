@@ -53,7 +53,7 @@
         "type": "function",
         "function": {
             "name": "clustering_tool",
-            "description": "Performs clustering. first it concatenates the regions and modality data given by region_list and modality_list and then performs clustering. This also generates the UMAP and Clustering plots as output.",
+            "description": "Performs clustering, If there are multiple regions then it concatenates the regions and then performs clustering . This also generates the UMAP and Clustering plots as output.",
             "strict": true,
             "parameters": {
                 "type": "object",
@@ -73,17 +73,15 @@
                         }
                     },
                     "modality": {
-                        "type": "array",
-                        "description": "List of omics data for the corresponding regions in region_list based on index. If not explicitly mentioned, make it 'pool' for number of regions in region_list.",
-                        "items": {
-                            "type": "string",
-                            "enum": [
-                                "pool",
-                                "metabolomics",
-                                "lipidomics",
-                                "glycomics"
-                            ]
-                        }
+                        "type": "string",
+                        "description": "Omics data (e.g., pool, metabolomics, lipidomics, glycomics) for all the regions passed in regions.",
+                        "enum": [
+                            "pool",
+                            "metabolomics",
+                            "lipidomics",
+                            "glycomics"
+                        ],
+                        "default": "pool"
                     },
                     "resolution": {
                         "type": "number",
@@ -121,6 +119,132 @@
                         "description": "Path to the second(reference) clustering result h5ad file."
                     }
                 }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "description": "Find marker molecules for single-cell analysis. Performs statistical analysis to identify differentially expressed features between clusters (single dataset mode) or between corresponding clusters of two datasets (dual dataset comparison mode).",
+            "strict": true,
+            "name": "markers_tool",
+            "parameters": {
+                "type": "object",
+                "required": [
+                    "file1",
+                    "file2",
+                    "abundance",
+                    "adj_pval_cutoff",
+                    "prevalance",
+                    "top_n_molecules"
+                ],
+                "properties": {
+                    "file1": {
+                        "type": "string",
+                        "description": "Name of the .h5ad file to find markers for (case/primary dataset)."
+                    },
+                    "file2": {
+                        "type": "string",
+                        "description": "Name of the second .h5ad file for comparison (control/reference dataset). If None, performs single-dataset marker analysis.",
+                        "nullable": true
+                    },
+                    "abundance": {
+                        "type": "number",
+                        "description": "Minimum abundance threshold for filtering features. Features must have this minimum expression level to be considered.",
+                        "default": 0.1
+                    },
+                    "adj_pval_cutoff": {
+                        "type": "number",
+                        "description": "Adjusted p-value cutoff for statistical significance. Only markers with adjusted p-value <= this threshold will be retained.",
+                        "default": 0.05
+                    },
+                    "prevalance": {
+                        "type": "number",
+                        "description": "Minimum prevalence threshold (fraction of cells expressing the feature). Features must be expressed in at least this fraction of cells (pct1 > 0.1 and pct2 > 0.1).",
+                        "default": 0.1
+                    },
+                    "top_n_molecules": {
+                        "type": "integer",
+                        "description": "Maximum number of top marker molecules to return per cluster comparison, ranked by absolute average log2 fold change.",
+                        "default": 5
+                    }
+                },
+                "additionalProperties": false
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "description": "Performs pathway enrichment analyses on the provided markers file, saves results in a csv file.",
+            "strict": true,
+            "name": "pathway_tool",
+            "parameters": {
+                "type": "object",
+                "required": [
+                    "marker_file",
+                    "modality"
+                ],
+                "properties": {
+                    "marker_file": {
+                        "type": "string",
+                        "description": "filename of csv marker file containing markker data."
+                    },
+                    "modality": {
+                        "type": "string",
+                        "description": "Modality of the pathway analysis.",
+                        "enum": [
+                            "metabolomics",
+                            "glycomics",
+                            "lipidomics"
+                        ]
+                    }
+                },
+                "additionalProperties": false
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "description": "generates and saves pathway visualization for the provided pathaway csv file and cluster.",
+            "strict": true,
+            "name": "pathway_viz_tool",
+            "parameters": {
+                "type": "object",
+                "required": [
+                    "pathaway_file",
+                    "cluster",
+                    "top_n_dot",
+                    "top_n_network",
+                    "top_n_bar"
+                ],
+                "properties": {
+                    "pathaway_file": {
+                        "type": "string",
+                        "description": "Path to the pathway csv file containing pathway data. generated by the pathway_tool function."
+                    },
+                    "cluster": {
+                        "type": "number",
+                        "description": "Cluster name for which the pathway visualization is generated."
+                    },
+                    "top_n_dot": {
+                        "type": "number",
+                        "description": "Number of top pathways to visualize in the dot plot.",
+                        "default": 20
+                    },
+                    "top_n_network": {
+                        "type": "number",
+                        "description": "Number of top pathways to visualize in the network plot.",
+                        "default": 10
+                    },
+                    "top_n_bar": {
+                        "type": "number",
+                        "description": "Number of top pathways to visualize in the bar plot.",
+                        "default": 5
+                    }
+                },
+                "additionalProperties": false
             }
         }
     }

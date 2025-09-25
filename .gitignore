@@ -1,5 +1,6 @@
 # scanpy formats
 *.h5ad
+*.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
